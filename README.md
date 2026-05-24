@@ -1,0 +1,1 @@
+# clickcheck-phishing-detector
