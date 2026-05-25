@@ -1,33 +1,39 @@
 import chromadb
 
-# Create client (this is your database)
+# Initialize database
 client = chromadb.Client()
 
-# Create a collection (like a table)
-collection = client.create_collection(name="url_features")
+# Create or get collection
+collection = client.get_or_create_collection(name="url_features")
 
-# Add some sample feature vectors
-collection.add(
-    documents=["safe site", "phishing site", "another phishing"],
-    embeddings=[
-        [18, 1, 1],   # safe
-        [30, 2, 0],   # phishing
-        [25, 2, 0]    # phishing
-    ],
-    ids=["1", "2", "3"]
-)
 
-# Now query (search similar vectors)
-query = [[26, 2, 0]]
+# Function to add sample data
+def add_data():
+    collection.add(
+        documents=["safe", "phishing", "phishing"],
+        embeddings=[
+            [18, 1, 1],
+            [30, 2, 0],
+            [25, 2, 0]
+        ],
+        ids=["1", "2", "3"]
+    )
 
-results = collection.query(
-    query_embeddings=query,
-    n_results=2
-)
 
-top_result = results['documents'][0][0]
+# Function to get similar vectors
+def get_similar(vector):
+    results = collection.query(
+        query_embeddings=[vector],
+        n_results=2
+    )
+    return results
 
-if "phishing" in top_result:
-    print("Prediction: PHISHING ⚠️")
-else:
-    print("Prediction: SAFE ✅")
+
+# Testing block
+if __name__ == "__main__":
+    add_data()
+
+    test_vector = [26, 2, 0]
+    result = get_similar(test_vector)
+
+    print(result)
