@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from backend.feature_extraction import extract_features
+from ml_model.model import predict_url
 
 app = FastAPI()
 
@@ -10,7 +11,13 @@ def home():
 @app.get("/scan-url")
 def scan_url(url: str):
     features = extract_features(url)
+
+    prediction = predict_url(features)
+
+    result = "phishing" if prediction == 1 else "safe"
+
     return {
         "url": url,
-        "features": features
+        "features": features,
+        "prediction": result
     }

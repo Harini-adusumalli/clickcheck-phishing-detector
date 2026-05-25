@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
 # Load dataset
-data = pd.read_csv("dataset.csv")
+data = pd.read_csv("ml_model/dataset.csv")
 
 # Features (input)
 X = data[["length", "dots", "https"]]
