@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from backend.feature_extraction import extract_features
 from ml_model.model import predict_url
+from vector_db.chroma_setup import get_similar , add_data , collection
 
+if collection.count() == 0:
+    add_data()
+    
 app = FastAPI()
 
 @app.get("/")
@@ -14,10 +18,10 @@ def scan_url(url: str):
 
     prediction = predict_url(features)
 
-    result = "phishing" if prediction == 1 else "safe"
-
+    similar = get_similar(features)
     return {
         "url": url,
         "features": features,
-        "prediction": result
+        "prediction": prediction,
+        "similarity": similar
     }

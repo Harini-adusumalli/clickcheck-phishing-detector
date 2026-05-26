@@ -3,7 +3,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
 # Load dataset
-data = pd.read_csv("dataset.csv")
+data = pd.read_csv("ml_model/dataset.csv")
 
 # ================================
 # FEATURES (16 FEATURES)
