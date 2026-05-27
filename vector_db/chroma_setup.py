@@ -6,42 +6,66 @@ client = chromadb.Client()
 # Create or get collection
 collection = client.get_or_create_collection(name="url_features")
 
-# Function to add sample data
+# ================================
+# ADD DATA (ONLY ONCE)
+# ================================
 def add_data():
-    collection.add(
-        documents=[
-            "safe",
-            "phishing",
-            "phishing"
-        ],
-        embeddings=[
-            # Example SAFE URL features
-            # length, dots, https, subdomains, slashes, hyphens,
-            # login, verify, bank, secure, update,
-            # ip, @, special, redirect, http_only
-            [18, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # Dummy data (for now)
+    documents = [
+        "safe",
+        "phishing",
+        "phishing"
+    ]
 
-            # Example PHISHING URL features
-            [35, 3, 0, 2, 5, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1],
+    embeddings = [
+        [18, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [35, 3, 0, 2, 5, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1],
+        [28, 2, 0, 1, 4, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1]
+    ]
 
-            # Another PHISHING example
-            [28, 2, 0, 1, 4, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1]
-        ],
-        ids=["1", "2", "3"]
-    )
+    ids = ["1", "2", "3"]
+
+    # ✅ Prevent duplicates
+    if collection.count() == 0:
+        collection.add(
+            documents=documents,
+            embeddings=embeddings,
+            ids=ids
+        )
+        print("✅ Data added to DB")
+    else:
+        print("⚠️ Data already exists, skipping...")
 
 
-# Function to find similar vectors
+# ================================
+# SIMILARITY FUNCTION
+# ================================
 def get_similar(vector):
     results = collection.query(
         query_embeddings=[vector],
         n_results=2
     )
 
+    matches = results["documents"]
+    distances = results["distances"]
+
+    # Convert distance → confidence
+    top_distance = distances[0][0]
+    confidence = round(1 / (1 + top_distance), 2)
+
     return {
-        "matches": results["documents"],
-        "distances": results["distances"]
+        "matches": matches,
+        "distances": distances,
+        "confidence": confidence
     }
+
+
+# ================================
+# INTERPRET RESULT
+# ================================
+def interpret_similarity(similar):
+    match = similar["matches"][0][0]
+    return "phishing" if match == "phishing" else "safe"
 
 
 # ================================
@@ -50,14 +74,15 @@ def get_similar(vector):
 if __name__ == "__main__":
     add_data()
 
-    # Test vector (same 16 feature format)
-    test_vector = [
-        30, 2, 0, 1, 4, 1,   # structure
-        1, 0, 0, 1, 0,       # keywords
-        0, 0, 1, 0, 1        # security/behavior
+    test_vectors = [
+        [18,1,1,0,2,0,0,0,0,0,0,0,0,0,0,0],  # safe
+        [35,3,0,2,5,1,1,1,0,1,0,1,0,1,1,1],  # phishing
     ]
 
-    result = get_similar(test_vector)
+    for vec in test_vectors:
+        result = get_similar(vec)
+        decision = interpret_similarity(result)
 
-    print("Result:")
-    print(result)
+        print("\nVector:", vec)
+        print("Result:", result)
+        print("Decision:", decision)
