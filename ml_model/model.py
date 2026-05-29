@@ -1,43 +1,86 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+import joblib
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.ensemble import RandomForestClassifier
 
-# Load dataset
-data = pd.read_csv("ml_model/dataset.csv")
+MODEL_PATH = "random_forest_model.pkl"
 
 # ================================
-# FEATURES (16 FEATURES)
+# TRAINING FUNCTION
 # ================================
-X = data[[
-    "length","dots","https","subdomains","slashes","hyphens",
-    "login","verify","bank","secure","update",
-    "ip","at","special","redirect","http_only"
-]]
+def train_model():
+    data = pd.read_csv("dataset_with_all_features v2.csv")
 
-# Label
-y = data["label"]
+    # Clean
+    data = data.dropna(subset=["label"])
+    data["label"] = data["label"].apply(lambda x: 1 if x != 0 else 0)
+    data["label"] = data["label"].astype(int)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+    # Features
+    X = data.select_dtypes(include=['number'])
+    X = X.drop("label", axis=1)
+    y = data["label"]
 
-# Create model
-model = RandomForestClassifier()
+    X = X.iloc[:, :16]
 
-# Train model
-model.fit(X_train, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-# Accuracy
-accuracy = model.score(X_test, y_test)
-print("Model Accuracy:", accuracy)
+    model = RandomForestClassifier(
+        n_estimators=100,
+        class_weight='balanced',
+        random_state=42
+    )
 
+    model.fit(X_train, y_train)
+
+    # Save model
+    joblib.dump(model, MODEL_PATH)
+    print("✅ Model saved successfully")
+
+    # Evaluation
+    y_pred = model.predict(X_test)
+
+    print("\n🔍 Final Model Performance:\n")
+    print("Accuracy :", accuracy_score(y_test, y_pred))
+    print("Precision:", precision_score(y_test, y_pred))
+    print("Recall   :", recall_score(y_test, y_pred))
+    print("F1 Score :", f1_score(y_test, y_pred))
+
+
+# ================================
+# LOAD MODEL (FOR API)
+# ================================
+import os
+import joblib
+
+MODEL_PATH = "random_forest_model.pkl"
+
+if not os.path.exists(MODEL_PATH):
+    print("⚠️ Model not found. Training now...")
+    train_model()
+
+model = joblib.load(MODEL_PATH)
+
+# ================================
+# PREDICTION FUNCTION
+# ================================
 def predict_url(features):
-    sample = pd.DataFrame([features], columns=X.columns)
-    prediction = model.predict(sample)[0]
-    return "phishing" if prediction == 1 else "safe"
+    prediction = model.predict([features])[0]
+    return prediction
 
 
+# ================================
+# RUN TRAINING ONLY MANUALLY
+# ================================
 if __name__ == "__main__":
+    train_model()
+
+    # Test
     test_features = [30,2,0,1,4,1,1,0,0,1,0,0,0,1,0,1]
-    print(predict_url(test_features))
+    result = predict_url(test_features)
+
+    print("\n🧪 Test Prediction:")
+    print("Phishing 🚨" if result == 1 else "Safe ✅")
