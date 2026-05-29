@@ -16,12 +16,26 @@ def home():
 def scan_url(url: str):
     features = extract_features(url)
 
+    # ML prediction
     prediction = predict_url(features)
+    ml_result = "phishing" if prediction == 1 else "safe"
 
+    # Similarity
     similar = get_similar(features)
+
+    # 👉 Extract similarity decision
+    sim_match = similar["matches"][0][0]
+
+    # FINAL DECISION
+    if ml_result == "phishing" or sim_match == "phishing":
+        final_result = "phishing"
+    else:
+        final_result = "safe"
+
     return {
         "url": url,
         "features": features,
-        "prediction": prediction,
-        "similarity": similar
+        "ml_prediction": ml_result,
+        "similarity": similar,
+        "final_result": final_result
     }

@@ -3,14 +3,18 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.ensemble import RandomForestClassifier
-
+import os
+import pandas as pd
 MODEL_PATH = "random_forest_model.pkl"
 
 # ================================
 # TRAINING FUNCTION
 # ================================
 def train_model():
-    data = pd.read_csv("dataset_with_all_features v2.csv")
+    base_dir = os.path.dirname(__file__)
+    file_path = os.path.join(base_dir, "dataset_old.csv")
+
+    data = pd.read_csv(file_path)
 
     # Clean
     data = data.dropna(subset=["label"])
