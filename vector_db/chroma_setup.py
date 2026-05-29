@@ -56,7 +56,8 @@ def get_similar(vector):
     return {
         "matches": matches,
         "distances": distances,
-        "confidence": confidence
+        "confidence": confidence,
+        "top_match": matches[0][0]
     }
 
 
@@ -64,8 +65,12 @@ def get_similar(vector):
 # INTERPRET RESULT
 # ================================
 def interpret_similarity(similar):
-    match = similar["matches"][0][0]
-    return "phishing" if match == "phishing" else "safe"
+    match = similar["top_match"]
+    confidence = similar["confidence"]
+
+    if match == "phishing" and confidence > 0.5:
+        return "phishing"
+    return "safe"
 
 
 # ================================
@@ -77,6 +82,7 @@ if __name__ == "__main__":
     test_vectors = [
         [18,1,1,0,2,0,0,0,0,0,0,0,0,0,0,0],  # safe
         [35,3,0,2,5,1,1,1,0,1,0,1,0,1,1,1],  # phishing
+        [25,2,0,1,3,1,1,0,0,0,0,0,0,0,0,1] # mixed
     ]
 
     for vec in test_vectors:
@@ -84,5 +90,7 @@ if __name__ == "__main__":
         decision = interpret_similarity(result)
 
         print("\nVector:", vec)
-        print("Result:", result)
+        print("Top Match:", result["top_match"])
+        print("Confidence:", result["confidence"])
         print("Decision:", decision)
+        
