@@ -12,9 +12,13 @@ MODEL_PATH = "random_forest_model.pkl"
 # ================================
 def train_model():
     base_dir = os.path.dirname(__file__)
-    file_path = os.path.join(base_dir, "dataset_old.csv")
+    file_path = os.path.join(base_dir, "dataset_with_all_features v2.csv")
 
     data = pd.read_csv(file_path)
+
+    print(data["label"].value_counts())
+    print(data["label"].value_counts(normalize=True) * 100)
+
 
     # Clean
     data = data.dropna(subset=["label"])
@@ -33,12 +37,30 @@ def train_model():
     )
 
     model = RandomForestClassifier(
-        n_estimators=100,
-        class_weight='balanced',
-        random_state=42
-    )
+    n_estimators=300,
+    max_depth=20,
+    min_samples_split=5,
+    min_samples_leaf=2,
+    class_weight="balanced",
+    random_state=42,
+    n_jobs=-1
+)
 
     model.fit(X_train, y_train)
+
+
+    importance_df = pd.DataFrame({
+    "Feature": X.columns,
+    "Importance": model.feature_importances_
+    })
+
+    importance_df = importance_df.sort_values(
+        by="Importance",
+        ascending=False
+    )
+
+    print("\nTop Features:")
+    print(importance_df.head(15))
 
     # Save model
     joblib.dump(model, MODEL_PATH)
@@ -46,6 +68,13 @@ def train_model():
 
     # Evaluation
     y_pred = model.predict(X_test)
+
+    
+    from sklearn.metrics import confusion_matrix
+
+    cm = confusion_matrix(y_test, y_pred)
+    print("\nConfusion Matrix:")
+    print(cm)
 
     print("\n🔍 Final Model Performance:\n")
     print("Accuracy :", accuracy_score(y_test, y_pred))
@@ -74,6 +103,8 @@ model = joblib.load(MODEL_PATH)
 def predict_url(features):
     prediction = model.predict([features])[0]
     return prediction
+
+
 
 
 # ================================
