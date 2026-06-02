@@ -1,0 +1,26 @@
+FEATURES = [
+    'web_is_live',
+    'web_security_score',
+    'web_forms_count',
+    'web_password_fields',
+    'web_has_login',
+    'web_ssl_valid',
+    'url_len',
+    '@',
+    '?',
+    '-',
+    '=',
+    '.',
+    '#',
+    '%',
+    '+',
+    '$',
+    'num_subdomains',
+    'has_verify',
+    'has_bank',
+    'has_secure',
+    'has_update',
+    'has_ip_address',
+    'has_redirect'
+]
+
