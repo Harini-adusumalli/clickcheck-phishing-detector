@@ -26,11 +26,42 @@ def train_model():
     data["label"] = data["label"].astype(int)
 
     # Features
-    X = data.select_dtypes(include=['number'])
-    X = X.drop("label", axis=1)
-    y = data["label"]
+    FEATURES = [
+        'web_is_live',
+        'web_security_score',
+        'web_forms_count',
+        'web_password_fields',
+        'web_has_login',
+        'web_ssl_valid',
+        'url_len',
+        '@',
+        '?',
+        '-',
+        '=',
+        '.',
+        '#',
+        '%',
+        '+',
+        '$',
+        'num_subdomains',
+        'has_verify',
+        'has_bank',
+        'has_secure',
+        'has_update',
+        'has_ip_address',
+        'has_redirect'
+    ]
 
-    X = X.iloc[:, :16]
+    
+    missing = [f for f in FEATURES if f not in data.columns]
+    print("Missing:", missing)
+
+    if missing:
+        print("Dataset needs feature generation first!")
+        return
+
+    X = data[FEATURES]
+    y = data["label"]
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
@@ -61,7 +92,7 @@ def train_model():
 
     print("\nTop Features:")
     print(importance_df.head(15))
-
+    print(X.columns.tolist())
     # Save model
     joblib.dump(model, MODEL_PATH)
     print("✅ Model saved successfully")
