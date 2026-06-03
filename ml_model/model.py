@@ -12,7 +12,7 @@ MODEL_PATH = "random_forest_model.pkl"
 # ================================
 def train_model():
     base_dir = os.path.dirname(__file__)
-    file_path = os.path.join(base_dir, "dataset_with_all_features v2.csv")
+    file_path = os.path.join(base_dir, "dataset_with_23_features.csv")
 
     data = pd.read_csv(file_path)
 
@@ -59,23 +59,45 @@ def train_model():
     if missing:
         print("Dataset needs feature generation first!")
         return
-
     X = data[FEATURES]
     y = data["label"]
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+    from xgboost import XGBClassifier
+
+    model = XGBClassifier(
+        n_estimators=500,
+        max_depth=8,
+        learning_rate=0.05,
+        random_state=42,
+        n_jobs=-1,
+        eval_metric="logloss"
     )
 
-    model = RandomForestClassifier(
-    n_estimators=300,
-    max_depth=20,
-    min_samples_split=5,
-    min_samples_leaf=2,
-    class_weight="balanced",
-    random_state=42,
-    n_jobs=-1
-)
+    from sklearn.model_selection import StratifiedKFold, cross_val_score
+
+    cv = StratifiedKFold(
+        n_splits=3,
+        shuffle=True,
+        random_state=42
+    )
+
+    cv_scores = cross_val_score(
+        model,
+        X,
+        y,
+        cv=cv,
+        scoring="f1"
+    )
+
+    print("\n📊 Cross Validation Results")
+    print("F1 Scores:", cv_scores)
+    print("Average F1:", cv_scores.mean())
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=0.2,
+        random_state=42
+    )
 
     model.fit(X_train, y_train)
 
@@ -145,7 +167,11 @@ if __name__ == "__main__":
     train_model()
 
     # Test
-    test_features = [30,2,0,1,4,1,1,0,0,1,0,0,0,1,0,1]
+    test_features = [
+    1, 90, 2, 1, 1, 1,
+    30, 0, 0, 1, 0, 5, 0, 0, 0, 0,
+    2, 0, 0, 1, 0, 0, 0
+]
     result = predict_url(test_features)
 
     print("\n🧪 Test Prediction:")
