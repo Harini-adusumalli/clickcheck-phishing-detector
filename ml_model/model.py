@@ -62,16 +62,16 @@ def train_model():
     X = data[FEATURES]
     y = data["label"]
 
-    from xgboost import XGBClassifier
-
-    model = XGBClassifier(
-        n_estimators=500,
-        max_depth=8,
-        learning_rate=0.05,
+    model = RandomForestClassifier(
+        n_estimators=1000,
+        max_depth=40,
+        min_samples_split=5,
+        min_samples_leaf=1,
+        class_weight="balanced",
         random_state=42,
-        n_jobs=-1,
-        eval_metric="logloss"
+        n_jobs=-1
     )
+
 
     from sklearn.model_selection import StratifiedKFold, cross_val_score
 
