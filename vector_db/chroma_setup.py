@@ -1,96 +1,140 @@
 import chromadb
-
-# Initialize ChromaDB client
-client = chromadb.Client()
-
-# Create or get collection
-collection = client.get_or_create_collection(name="url_features")
+import pandas as pd
+from collections import Counter
 
 # ================================
-# ADD DATA (ONLY ONCE)
+# CHROMADB SETUP
 # ================================
+
+client = chromadb.PersistentClient(path="./chroma_db")
+
+collection = client.get_or_create_collection(
+    name="url_features"
+)
+
+# ================================
+# LOAD DATASET
+# ================================
+
+df = pd.read_csv(r"D:\internship\clickcheck-phishing-detector\ml_model\dataset_with_23_features.csv")
+
+feature_columns = [
+    'web_is_live',
+    'web_security_score',
+    'web_forms_count',
+    'web_password_fields',
+    'web_has_login',
+    'web_ssl_valid',
+    'url_len',
+    '@',
+    '?',
+    '-',
+    '=',
+    '.',
+    '#',
+    '%',
+    '+',
+    '$',
+    'num_subdomains',
+    'has_verify',
+    'has_bank',
+    'has_secure',
+    'has_update',
+    'has_ip_address',
+    'has_redirect'
+]
+
+# ================================
+# ADD DATA TO CHROMADB
+# ================================
+
 def add_data():
-    # Dummy data (for now)
-    documents = [
-        "safe",
-        "phishing",
-        "phishing"
-    ]
 
-    embeddings = [
-        [18, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [35, 3, 0, 2, 5, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1],
-        [28, 2, 0, 1, 4, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1]
-    ]
+    sample = df.head(1000)
 
-    ids = ["1", "2", "3"]
+    ids = [str(i) for i in range(len(sample))]
 
-    # ✅ Prevent duplicates
+    embeddings = sample[feature_columns].values.tolist()
+
+    documents = sample["label"].astype(str).tolist()
+
     if collection.count() == 0:
+
         collection.add(
-            documents=documents,
+            ids=ids,
             embeddings=embeddings,
-            ids=ids
+            documents=documents
         )
-        print("✅ Data added to DB")
+
+        print("✅ Real dataset added to ChromaDB")
+
     else:
-        print("⚠️ Data already exists, skipping...")
-
+        print("⚠️ Collection already contains data")
 
 # ================================
-# SIMILARITY FUNCTION
+# SIMILARITY SEARCH
 # ================================
+
 def get_similar(vector):
+
     results = collection.query(
         query_embeddings=[vector],
-        n_results=2
+        n_results=min(5, collection.count())
     )
 
-    matches = results["documents"]
-    distances = results["distances"]
+    matches = results["documents"][0]
+    distances = results["distances"][0]
 
-    # Convert distance → confidence
-    top_distance = distances[0][0]
-    confidence = round(1 / (1 + top_distance), 2)
+    confidence = round(
+        1 / (1 + distances[0]),
+        2
+    )
 
     return {
         "matches": matches,
         "distances": distances,
-        "confidence": confidence,
-        "top_match": matches[0][0]
+        "confidence": confidence
     }
 
-
 # ================================
-# INTERPRET RESULT
+# MAJORITY VOTING DECISION
 # ================================
-def interpret_similarity(similar):
-    match = similar["top_match"]
-    confidence = similar["confidence"]
 
-    if match == "phishing" and confidence > 0.5:
+def interpret_similarity(result):
+
+    matches = result["matches"]
+
+    vote = Counter(matches)
+
+    majority_label = vote.most_common(1)[0][0]
+
+    print("Vote Count:", dict(vote))
+
+    if majority_label in ["1", "2", "3"]:
         return "phishing"
+
     return "safe"
 
+# ================================
+# TESTING
+# ================================
 
-# ================================
-# TEST BLOCK
-# ================================
 if __name__ == "__main__":
+
     add_data()
 
-    test_vectors = [
-        [18,1,1,0,2,0,0,0,0,0,0,0,0,0,0,0],  # safe
-        [35,3,0,2,5,1,1,1,0,1,0,1,0,1,1,1],  # phishing
-        [25,2,0,1,3,1,1,0,0,0,0,0,0,0,0,1] # mixed
-    ]
+    test_vector = (
+        df[feature_columns]
+        .iloc[100]
+        .tolist()
+    )
 
-    for vec in test_vectors:
-        result = get_similar(vec)
-        decision = interpret_similarity(result)
+    result = get_similar(test_vector)
 
-        print("\nVector:", vec)
-        print("Top Match:", result["top_match"])
-        print("Confidence:", result["confidence"])
-        print("Decision:", decision)
-        
+    decision = interpret_similarity(result)
+
+    print("\n========== RESULTS ==========")
+    print("Matches:", result["matches"])
+    print("Distances:", result["distances"])
+    print("Confidence:", result["confidence"])
+    print("Decision:", decision)
