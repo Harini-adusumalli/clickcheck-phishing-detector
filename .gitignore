@@ -1,4 +1,5 @@
 *.csv
+!ml_model/dataset_cleaned.csv
 *.pkl
 *.zip
 venv/
