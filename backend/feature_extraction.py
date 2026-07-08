@@ -1,10 +1,12 @@
+import requests
+from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse
 
 def extract_features(url):
     try:
         if not url or not isinstance(url, str):
-            return [0]*16
+            return [0] * 23
 
         parsed = urlparse(url)
 
@@ -32,34 +34,84 @@ def extract_features(url):
         has_redirect = 1 if url.count("//") > 1 else 0
         is_http_not_https = 1 if url.startswith("http://") else 0
 
+        try:
+            response = requests.get(url, timeout=5)
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            web_is_live = 1 if response.status_code == 200 else 0
+
+            web_forms_count = len(soup.find_all("form"))
+
+            web_password_fields = len(
+                soup.find_all("input", {"type": "password"})
+            )
+
+            web_has_login = (
+                1 if (
+                    web_password_fields > 0
+                    or "login" in response.text.lower()
+                ) else 0
+            )
+
+            web_ssl_valid = 1 if url.startswith("https://") else 0
+
+        except Exception:
+            web_is_live = 0
+            web_forms_count = 0
+            web_password_fields = 0
+            web_has_login = 0
+            web_ssl_valid = 0
+        web_security_score = 0
+
+        if web_is_live:
+            web_security_score += 1
+
+        if web_ssl_valid:
+            web_security_score += 1
+
+        if web_password_fields == 0:
+            web_security_score += 1
+
+        if not has_ip_address:
+            web_security_score += 1
+
         features = [
-            length, #0
-            num_dots,#1
-            has_https,#2
-            num_subdomains,#3
-            num_slashes,#4
-            num_hyphens,#5
-            has_login,#6
-            has_verify,#7
-            has_bank,#8
-            has_secure,#9
-            has_update,#10
-            has_ip_address,#11
-            has_at_symbol,#12
-            has_special_chars,#13
-            has_redirect,#14
-            is_http_not_https#15
-        ]
+    web_is_live,
+    web_security_score,
+    web_forms_count,
+    web_password_fields,
+    web_has_login,
+    web_ssl_valid,
+
+    length,
+    url.count("@"),
+    url.count("?"),
+    url.count("-"),
+    url.count("="),
+    url.count("."),
+    url.count("#"),
+    url.count("%"),
+    url.count("+"),
+    url.count("$"),
+
+    num_subdomains,
+    has_verify,
+    has_bank,
+    has_secure,
+    has_update,
+    has_ip_address,
+    has_redirect
+]
         
         # safety check
-        if len(features) != 16:
-            return [0]*16
+        if len(features) != 23:
+            return [0] * 23
 
         return features
 
     except Exception as e:
         print("Error processing URL:", url)
-        return [0]*16
+        return [0] * 23
     
     
 
@@ -72,3 +124,11 @@ def is_suspicious(features):
     )
 
     return ("suspicious", score) if score >= 2 else ("safe", score)
+
+if __name__ == "__main__":
+    url = input("Enter URL: ")
+
+    features = extract_features(url)
+
+    print("Length:", len(features))
+    print(features)
