@@ -1,6 +1,8 @@
 import chromadb
 import pandas as pd
 from collections import Counter
+from backend.feature_extraction import extract_features
+
 
 # ================================
 # CHROMADB SETUP
@@ -16,7 +18,7 @@ collection = client.get_or_create_collection(
 # LOAD DATASET
 # ================================
 
-df = pd.read_csv(r"D:\internship\clickcheck-phishing-detector\ml_model\dataset_with_23_features.csv")
+df = pd.read_csv(r"D:\internship\clickcheck-phishing-detector\ml_model\dataset_cleaned.csv")
 
 feature_columns = [
     'web_is_live',
@@ -50,26 +52,40 @@ feature_columns = [
 
 def add_data():
 
-    sample = df.head(1000)
+    safe = df[df["label"] == 0].sample(n=3000, random_state=42)
+    phishing = df[df["label"] != 0].sample(n=3000, random_state=42)
 
-    ids = [str(i) for i in range(len(sample))]
+    sample = pd.concat([safe, phishing]).sample(frac=1, random_state=42)
 
-    embeddings = sample[feature_columns].values.tolist()
+    print(sample["label"].value_counts())
+    if collection.count() > 0:
+        print("⚠️ Collection already contains data")
+        return
 
-    documents = sample["label"].astype(str).tolist()
+    batch_size = 5000  # Must be less than 5461
 
-    if collection.count() == 0:
+    for start in range(0, len(sample), batch_size):
+        end = min(start + batch_size, len(sample))
+
+        batch = sample.iloc[start:end]
+
+        ids = [str(i) for i in range(start, end)]
+        embeddings = batch[feature_columns].values.tolist()
+        documents = batch["url"].tolist()
+        metadatas=[{"label": str(label)}
+                   for label in batch["label"]
+                   ]
 
         collection.add(
             ids=ids,
             embeddings=embeddings,
-            documents=documents
+            documents=documents,
+            metadatas=metadatas
         )
 
-        print("✅ Real dataset added to ChromaDB")
+        print(f"Added vectors {start} to {end-1}")
 
-    else:
-        print("⚠️ Collection already contains data")
+    print(f"\n✅ Total vectors stored: {collection.count()}")
 
 # ================================
 # SIMILARITY SEARCH
@@ -83,6 +99,7 @@ def get_similar(vector):
     )
 
     matches = results["documents"][0]
+    labels = [item["label"] for item in results["metadatas"][0]]
     distances = results["distances"][0]
 
     confidence = round(
@@ -92,6 +109,7 @@ def get_similar(vector):
 
     return {
         "matches": matches,
+        "labels": labels,
         "distances": distances,
         "confidence": confidence
     }
@@ -102,15 +120,15 @@ def get_similar(vector):
 
 def interpret_similarity(result):
 
-    matches = result["matches"]
+    labels = result["labels"]
 
-    vote = Counter(matches)
+    vote = Counter(labels)
 
     majority_label = vote.most_common(1)[0][0]
 
     print("Vote Count:", dict(vote))
 
-    if majority_label in ["1", "2", "3"]:
+    if majority_label in ["1.0", "2.0", "3.0"]:
         return "phishing"
 
     return "safe"
@@ -123,18 +141,22 @@ if __name__ == "__main__":
 
     add_data()
 
-    test_vector = (
-        df[feature_columns]
-        .iloc[100]
-        .tolist()
-    )
+    url = input("Enter URL: ")
+    test_vector = extract_features(url)
+    print(test_vector)
+    print(len(test_vector))
 
     result = get_similar(test_vector)
 
     decision = interpret_similarity(result)
 
     print("\n========== RESULTS ==========")
-    print("Matches:", result["matches"])
+    print("Similar URLs:")
+    for url in result["matches"]:
+        print(url)
+
+    print("\nLabels:", result["labels"])
     print("Distances:", result["distances"])
     print("Confidence:", result["confidence"])
     print("Decision:", decision)
+    
